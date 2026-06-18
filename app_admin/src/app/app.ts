@@ -1,14 +1,16 @@
-import { Component, signal } from '@angular/core';
+import { Component} from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { TripListingComponent } from './trip-listing/trip-listing';
+import { NavbarComponent } from './navbar/navbar';
+// import { TripListingComponent } from './trip-listing/trip-listing';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, TripListingComponent],
+  imports: [CommonModule,RouterOutlet, NavbarComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
-  protected readonly title = signal('Travlr Getaways Admin!');
+  title = 'Travlr Getaways Admin!';
 }
