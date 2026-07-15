@@ -2,7 +2,6 @@ import { Component} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { NavbarComponent } from './navbar/navbar';
-// import { TripListingComponent } from './trip-listing/trip-listing';
 
 @Component({
   selector: 'app-root',

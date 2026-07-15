@@ -3,91 +3,120 @@ import { BROWSER_STORAGE } from '../storage';
 import { User } from '../models/user';
 import { AuthResponse } from '../auth-response';
 import { TripDataService } from './trip-data';
+import { BehaviorSubject, tap } from 'rxjs';
 
 @Injectable({
     providedIn: 'root'
 })
-
 export class AuthenticationService {
-    // Setup our storage and service access
-    constructor(
-        @Inject (BROWSER_STORAGE) private storage: Storage,
-        private tripDataService: TripDataService
-    ) { }
+    private readonly tokenKey = 'travlr-token';
 
-    // Variable to handle Authentication Responses
+    private loggedInStatus = new BehaviorSubject<boolean>(false);
+    public loggedInStatus$ = this.loggedInStatus.asObservable();
+
     authResp: AuthResponse = new AuthResponse();
 
-    // Get our token from our Storage provider.
-    // NOTE: For this application, we have decided that we will name the key for our token 'travlr-token'
+    constructor(
+        @Inject(BROWSER_STORAGE) private storage: Storage,
+        private tripDataService: TripDataService
+    ) {
+        this.loggedInStatus.next(this.isLoggedIn());
+    }
+
     public getToken(): string {
-        let out: any;
-        out = this.storage.getItem('travlr-token');
-
-        // Make sure we return a string even if we don't have a token
-        if (!out)
-        {
-            return '';
-        }
-        return out;
+        const token = this.storage.getItem(this.tokenKey);
+        return token ? token : '';
     }
 
-    // Save our token to our Storage provider.
-    // NOTE: For this application we have decided that we will name the key for our token 'travlr-token'
     public saveToken(token: string): void {
-        this.storage.setItem('travlr-token', token);
+        if (token) {
+            this.storage.setItem(this.tokenKey, token);
+            this.loggedInStatus.next(true);
+        }
     }
 
-    // Logout of our application and remove the JWT from Storage
     public logout(): void {
-        this.storage.removeItem('travlr-token');
+        this.storage.removeItem(this.tokenKey);
+        this.loggedInStatus.next(false);
     }
 
-    // Boolean to determine if we are logged in and the token is still valid. Even if we have a token we will still have to reauthenticate if the token has expired
+    private decodeTokenPayload(): any | null {
+        const token = this.getToken();
+
+        if (!token) {
+            return null;
+        }
+
+        const tokenParts = token.split('.');
+
+        if (tokenParts.length !== 3) {
+            this.logout();
+            return null;
+        }
+
+        try {
+            let payload = tokenParts[1]
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            while (payload.length % 4) {
+                payload += '=';
+            }
+
+            return JSON.parse(atob(payload));
+        } catch (error) {
+            console.log('Invalid token payload');
+            this.logout();
+            return null;
+        }
+    }
+
     public isLoggedIn(): boolean {
-        const token: string = this.getToken();
-        if(token) {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.exp > (Date.now() / 1000);
-        } else {
+        const payload = this.decodeTokenPayload();
+
+        if (!payload || !payload.exp) {
             return false;
         }
+
+        const isValid = payload.exp > Date.now() / 1000;
+
+        if (!isValid) {
+            this.logout();
+        }
+
+        return isValid;
     }
 
-    // Retrieve the current user. This function should only be called after the calling method has checked to make sure that the user isLoggedIn
     public getCurrentUser(): User {
-        const token: string = this.getToken();
-        const { email, name } = JSON.parse(atob(token.split('.')[1]));
-        return { email, name } as User;
+        const payload = this.decodeTokenPayload();
+
+        if (!payload) {
+            return new User();
+        }
+
+        return {
+            email: payload.email || '',
+            name: payload.name || ''
+        } as User;
     }
 
-    // Login method that leverages the login method in tripDataService
-    // Because that method returns an observable, we subscribe to the result and only process when the Observable condition is satisfied
-    // uncomment the two console.log messages for additional debugging information.
-    public login(user: User, passwd: string): void {
-        this.tripDataService.login(user,passwd)
-            .subscribe({
-                next: (value: any) => {
-                    if (value)
-                    {
-                        console.log(value);
+    public login(user: User, passwd: string) {
+        return this.tripDataService.login(user, passwd)
+            .pipe(
+                tap((value: AuthResponse) => {
+                    if (value && value.token) {
                         this.authResp = value;
                         this.saveToken(this.authResp.token);
                     }
-                },
-                error: (error: any) => {
-                    console.log('Error: ' + error);
-                }
-            })
+                })
+            );
     }
 
-    // Register method that leverages the register method in tripDataService
     public register(user: User, passwd: string): void {
-        this.tripDataService.register(user,passwd)
+        this.tripDataService.register(user, passwd)
             .subscribe({
-                next: (value: any) => {
-                    if(value)
-                    {
+                next: (value: AuthResponse) => {
+                    if (value && value.token) {
                         console.log(value);
                         this.authResp = value;
                         this.saveToken(this.authResp.token);
@@ -95,7 +124,8 @@ export class AuthenticationService {
                 },
                 error: (error: any) => {
                     console.log('Error: ' + error);
+                    this.logout();
                 }
-            })
+            });
     }
 }

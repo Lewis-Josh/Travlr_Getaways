@@ -16,8 +16,6 @@ const userSchema = new mongoose.Schema({
     salt: String
 });
 
-mongoose.model('users', userSchema);
-
 // Method to set the password on this record.
 userSchema.methods.setPassword = function(password) {
     this.salt = crypto.randomBytes(16).toString('hex');
@@ -31,7 +29,7 @@ userSchema.methods.validPassword = function(password) {
 };
 
 // Method to generate a JSON Web Token for the current record
-userSchema.methods.generateJwt = function() {
+userSchema.methods.generateJWT = function() {
     return jwt.sign(
     { // Payload for our JSON Web Token
         _id: this._id,

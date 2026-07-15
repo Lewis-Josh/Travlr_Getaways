@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
-import { AuthenticationService } from '../services/authentication';
 import { RouterModule } from '@angular/router';
+
+import { AuthenticationService } from '../services/authentication';
 
 @Component({
   selector: 'app-navbar',
@@ -11,20 +11,24 @@ import { RouterModule } from '@angular/router';
   templateUrl: './navbar.html',
   styleUrl: './navbar.css',
 })
-
 export class NavbarComponent implements OnInit {
+  public loggedIn: boolean = false;
 
   constructor(
     private authenticationService: AuthenticationService
   ) { }
 
-  ngOnInit() { }
+  public ngOnInit(): void {
+    this.loggedIn = this.authenticationService.isLoggedIn();
 
-  public isLoggedIn(): boolean {
-    return this.authenticationService.isLoggedIn();
+    this.authenticationService.loggedInStatus$
+      .subscribe((status: boolean) => {
+        this.loggedIn = status;
+      });
   }
 
   public onLogout(): void {
-    return this.authenticationService.logout();
+    this.authenticationService.logout();
+    window.location.assign('/');
   }
 }

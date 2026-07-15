@@ -1,67 +1,77 @@
-const mongoose = require('mongoose');
-const User = require('../models/user');
 const passport = require('passport');
+const User = require('../models/user');
 
-const register = async(req, res) => {
-    // Validate message to insure that all parameters are present
-    if (!req.body.name || !req.body.email || !req.body.password) {
-        return res
-            .status(400)
-            .json({"message": "All fields required"});
+const register = async (req, res) => {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+        return res.status(400).json({
+            message: 'Name, email, and password are required.'
+        });
     }
 
-    const user = new User(
-        {
-            name: req.body.name,    // Set User name
-            email: req.body.email,  // Set e-mail address
-            password: ''            // Start with empty password
-        });
-    user.setPassword(req.body.password) // Set user password
-    const q = await user.save();
+    try {
+        const existingUser = await User.findOne({ email: email }).exec();
 
-    if(!q)
-    {
-        // Database returned no data
-        return res
-            .status(400)
-            .json(err);
-    } else {
-        // Return new user token
+        if (existingUser) {
+            return res.status(409).json({
+                message: 'A user with this email already exists.'
+            });
+        }
+
+        const user = new User({
+            name: name,
+            email: email
+        });
+
+        user.setPassword(password);
+
+        await user.save();
+
         const token = user.generateJWT();
-        return res
-            .status(200)
-            .json(token);
+
+        return res.status(201).json({
+            token: token
+        });
+    } catch (err) {
+        console.error('Registration error:', err);
+
+        return res.status(500).json({
+            message: 'Unable to register user.'
+        });
     }
 };
 
 const login = (req, res) => {
-    // Validate message to ensure that email and password are present.
-    if (!req.body.email || !req.body.password) {
-        return res
-            .status(400)
-            .json({"message": "All fields required"});
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({
+            message: 'Email and password are required.'
+        });
     }
 
-    // Delegate authentication to passport module
     passport.authenticate('local', (err, user, info) => {
         if (err) {
-            // Error in Authentication Process
-            return res
-                .status(404)
-                .json(err);
+            console.error('Login error:', err);
+
+            return res.status(500).json({
+                message: 'Unable to process login request.'
+            });
         }
 
-        if (user) { // Auth succeeded - generate JWT and return to caller
-            const token = user.generateJWT();
-            res
-                .status(200)
-                .json({token});
-        } else { // Auth failed return error
-            res
-                .status(401)
-                .json(info);
+        if (!user) {
+            return res.status(401).json({
+                message: 'Invalid email or password.'
+            });
         }
-    }) (req, res);
+
+        const token = user.generateJWT();
+
+        return res.status(200).json({
+            token: token
+        });
+    })(req, res);
 };
 
 module.exports = {

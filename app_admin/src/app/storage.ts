@@ -5,5 +5,3 @@ export const BROWSER_STORAGE = new
         providedIn: 'root',
         factory: () => localStorage
     });
-
-export class Storage {}
