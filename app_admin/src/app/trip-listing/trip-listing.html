@@ -1,8 +1,215 @@
-<div>
-    <button (click)="addTrip()" class="btn btn-info">Add Trip</button>
+<div class="row mb-3">
+    <div class="col-12">
+        <button (click)="addTrip()" class="btn btn-info">
+            Add Trip
+        </button>
+    </div>
 </div>
-<div class="row">
-    <div *ngFor="let trip of trips" class="col-md-4">
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>Trip Recommendations</h4>
+                <p class="mb-0">
+                    Enter preference criteria to filter, score, and rank available trips.
+                </p>
+            </div>
+
+            <div class="card-body">
+                <form (ngSubmit)="onSearch()">
+                    <div class="row">
+                        <div class="col-12 col-md-4">
+                            <div class="form-group">
+                                <label for="keyword">Keyword / Resort</label>
+                                <input
+                                    type="text"
+                                    id="keyword"
+                                    name="keyword"
+                                    class="form-control"
+                                    placeholder="e.g. reef, beach, Bahamas"
+                                    [(ngModel)]="searchCriteria.keyword"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="form-group">
+                                <label for="maxPrice">Maximum Price</label>
+                                <input
+                                    type="number"
+                                    id="maxPrice"
+                                    name="maxPrice"
+                                    class="form-control"
+                                    placeholder="e.g. 1500"
+                                    min="0"
+                                    [(ngModel)]="searchCriteria.maxPrice"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="form-group">
+                                <label for="startDate">Preferred Start Date</label>
+                                <input
+                                    type="date"
+                                    id="startDate"
+                                    name="startDate"
+                                    class="form-control"
+                                    [(ngModel)]="searchCriteria.startDate"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 col-md-4">
+                            <div class="form-group">
+                                <label for="minLength">Minimum Length</label>
+                                <input
+                                    type="number"
+                                    id="minLength"
+                                    name="minLength"
+                                    class="form-control"
+                                    placeholder="e.g. 3"
+                                    min="0"
+                                    [(ngModel)]="searchCriteria.minLength"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="form-group">
+                                <label for="maxLength">Maximum Length</label>
+                                <input
+                                    type="number"
+                                    id="maxLength"
+                                    name="maxLength"
+                                    class="form-control"
+                                    placeholder="e.g. 7"
+                                    min="0"
+                                    [(ngModel)]="searchCriteria.maxLength"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="form-group">
+                                <label for="sortBy">Sort By</label>
+                                <select
+                                    id="sortBy"
+                                    name="sortBy"
+                                    class="form-control"
+                                    [(ngModel)]="searchCriteria.sortBy">
+                                    <option
+                                        *ngFor="let option of sortOptions"
+                                        [value]="option.value">
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mr-2">
+                        Find Recommendations
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        (click)="onClearSearch()">
+                        Clear
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3" *ngIf="message">
+    <div class="col-12">
+        <div class="alert alert-info">
+            {{ message }}
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3" *ngIf="hasSearched && hasRecommendationResults">
+    <div class="col-12">
+        <h4>Ranked Recommendation Results</h4>
+        <p>
+            Results are scored using keyword, price, trip length, start date, and description matches.
+        </p>
+    </div>
+</div>
+
+<div class="row" *ngIf="hasSearched && hasRecommendationResults">
+    <div
+        *ngFor="let recommendation of recommendationResults; let index = index"
+        class="col-md-4 mb-4">
+
+        <div class="card h-100">
+            <div class="card-header">
+                <strong>Rank #{{ index + 1 }}</strong>
+                <span class="float-right">
+                    Score: {{ recommendation.score }}
+                </span>
+            </div>
+
+            <app-trip-card [trip]="recommendation.trip"></app-trip-card>
+
+            <div class="card-body">
+                <p class="mb-1">
+                    <strong>Parsed Price:</strong>
+                    {{ recommendation.parsedPrice | currency:'USD':'symbol':'1.0-0' }}
+                </p>
+
+                <p class="mb-1">
+                    <strong>Parsed Length:</strong>
+                    {{ recommendation.parsedLength }} day(s)
+                </p>
+
+                <div *ngIf="recommendation.reasons.length > 0">
+                    <strong>Match Reasons:</strong>
+                    <ul class="mb-0">
+                        <li *ngFor="let reason of recommendation.reasons">
+                            {{ reason }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3" *ngIf="!hasSearched && hasTrips">
+    <div class="col-12">
+        <h4>Available Trips</h4>
+        <p>
+            Enter recommendation criteria above to score and rank these trips.
+        </p>
+    </div>
+</div>
+
+<div class="row" *ngIf="!hasSearched && hasTrips">
+    <div *ngFor="let trip of trips" class="col-md-4 mb-4">
         <app-trip-card [trip]="trip"></app-trip-card>
+    </div>
+</div>
+
+<div class="row" *ngIf="hasSearched && !hasRecommendationResults">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            No trips matched the selected recommendation criteria.
+        </div>
+    </div>
+</div>
+
+<div class="row" *ngIf="!hasTrips">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            No trips are currently available to display.
+        </div>
     </div>
 </div>
